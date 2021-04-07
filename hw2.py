@@ -38,6 +38,7 @@ def reshapeAndAppend1s (faces):
 # Given a vector of weights w, a design matrix Xtilde, and a vector of labels y, return the (unregularized)
 # MSE.
 def fMSE (w, Xtilde, y):
+
 	
 	bias = w[-1];
 	w_fit = w[0:-1];
@@ -46,8 +47,6 @@ def fMSE (w, Xtilde, y):
 	sum = 0;
 	for i in Xtilde.T:
 		guess = i[0:-1].T.dot(w_fit) + bias;
-
-		print guess, y[index], "\n\n";
 
 		sum = sum + (guess - y[index]) **2
 		index = index + 1;
@@ -60,29 +59,43 @@ def fMSE (w, Xtilde, y):
 # Given a vector of weights w, a design matrix Xtilde, and a vector of labels y, and a regularization strength
 # alpha (default value of 0), return the gradient of the (regularized) MSE loss.
 def gradfMSE (w, Xtilde, y, alpha = 0.):
-	pass
+	error = (1 / float(Xtilde.shape[1])) * (y - Xtilde.T.dot(w)).T.dot(y - Xtilde.T.dot(w));
+	
+	if alpha != 0:
+		regulation = alpha / (2 * Xtilde.shape[1]);
+		regulation = regulation * w.T.dot(w);
+	else:
+		regulation = 0;
+
+	return error + regulation;
 
 # Given a design matrix Xtilde and labels y, train a linear regressor for Xtilde and y using the analytical solution.
 def method1 (Xtilde, y):
-	wtilde = np.linalg.solve(Xtilde.dot(Xtilde.T), Xtilde.dot(y));
-
-	return wtilde;
+	return np.linalg.solve(Xtilde.dot(Xtilde.T), Xtilde.dot(y));
 
 # Given a design matrix Xtilde and labels y, train a linear regressor for Xtilde and y using gradient descent on fMSE.
 def method2 (Xtilde, y):
-	pass
+	return gradientDescent(Xtilde, y);
 
 # Given a design matrix Xtilde and labels y, train a linear regressor for Xtilde and y using gradient descent on fMSE
 # with regularization.
 def method3 (Xtilde, y):
 	ALPHA = 0.1
-	pass
+	return gradientDescent(Xtilde, y, ALPHA);
 
 # Helper method for method2 and method3.
 def gradientDescent (Xtilde, y, alpha = 0.):
-	EPSILON = 3e-3  # Step size aka learning rate
+	EPSILON = 0.003  # Step size aka learning rate
 	T = 5000  # Number of gradient descent iterations
+	
+	w = 0.01 * np.random.randn(Xtilde.shape[0]);
 
+
+	for i in range(0, T):
+		guess = Xtilde.T.dot(w);
+		w = w - EPSILON * (1 / float(Xtilde.shape[1])) * (Xtilde.dot(guess - y));
+		
+	return w;
 if __name__ == "__main__":
 # Load data
 
@@ -98,6 +111,7 @@ if __name__ == "__main__":
 	w3 = method3(Xtilde_tr, ytr)
 
 	print fMSE(w1, Xtilde_te, yte);
-
+	print gradfMSE(w2, Xtilde_te, yte)
+	print gradfMSE(w3, Xtilde_te, yte)
 # Report fMSE cost using each of the three learned weight vectors
 # ...
