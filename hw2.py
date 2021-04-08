@@ -1,4 +1,5 @@
 import numpy as np
+from matplotlib import pyplot as plt
 
 ########################################################################################################################
 # PROBLEM 2
@@ -38,7 +39,6 @@ def reshapeAndAppend1s (faces):
 # Given a vector of weights w, a design matrix Xtilde, and a vector of labels y, return the (unregularized)
 # MSE.
 def fMSE (w, Xtilde, y):
-
 	
 	bias = w[-1];
 	w_fit = w[0:-1];
@@ -54,20 +54,19 @@ def fMSE (w, Xtilde, y):
 
 	return sum / (2 * Xtilde.shape[1] - 1);
 
-
-
 # Given a vector of weights w, a design matrix Xtilde, and a vector of labels y, and a regularization strength
 # alpha (default value of 0), return the gradient of the (regularized) MSE loss.
 def gradfMSE (w, Xtilde, y, alpha = 0.):
-	error = (1 / float(Xtilde.shape[1])) * (y - Xtilde.T.dot(w)).T.dot(y - Xtilde.T.dot(w));
-	
+
+	guess = Xtilde[0:-1].T.dot(w[0:-1]) + w[-1];
+
 	if alpha != 0:
-		regulation = alpha / (2 * Xtilde.shape[1]);
-		regulation = regulation * w.T.dot(w);
+		regulation = alpha / (2 * (Xtilde.shape[1] - 1));
+		regulation = regulation * w[0:-1].T.dot(w[0:-1]);
 	else:
 		regulation = 0;
 
-	return error + regulation;
+	return (1 / float(Xtilde.shape[1])) * (Xtilde.dot(guess - y)) + regulation;
 
 # Given a design matrix Xtilde and labels y, train a linear regressor for Xtilde and y using the analytical solution.
 def method1 (Xtilde, y):
@@ -83,6 +82,28 @@ def method3 (Xtilde, y):
 	ALPHA = 0.1
 	return gradientDescent(Xtilde, y, ALPHA);
 
+def biggestErrors(w, Xtilde, y):
+	performance = np.array([]);
+	
+	bias = w[-1];
+	w_fit = w[0:-1];
+
+	index = 0;
+	for i in Xtilde.T:
+		guess = i[0:-1].T.dot(w_fit) + bias;
+		groundTruth = y[index];
+
+		error = ((guess - groundTruth)**2)**0.5
+
+		data = np.array([index, error, guess, groundTruth]);
+
+		performance = np.append(performance, data, axis = 0);
+
+		index = index + 1;
+
+	formatted =  np.reshape(performance, (-1, 4))
+	return np.flip(formatted[formatted[:, 1].argsort()], 0)[0:5, :];	
+
 # Helper method for method2 and method3.
 def gradientDescent (Xtilde, y, alpha = 0.):
 	EPSILON = 0.003  # Step size aka learning rate
@@ -90,28 +111,57 @@ def gradientDescent (Xtilde, y, alpha = 0.):
 	
 	w = 0.01 * np.random.randn(Xtilde.shape[0]);
 
-
 	for i in range(0, T):
-		guess = Xtilde.T.dot(w);
-		w = w - EPSILON * (1 / float(Xtilde.shape[1])) * (Xtilde.dot(guess - y));
-		
+		w = w - EPSILON * gradfMSE(w, Xtilde, y, alpha);
 	return w;
+
+
+def trainPolynomialRegressor(x, y, d):
+
+	designMatrix = np.array([]);
+
+	for i in range(0, d + 1):
+		powerComp = x ** i;
+		designMatrix = np.append(designMatrix, powerComp, axis = 0);
+	
+	designMatrix = np.reshape(designMatrix, (d + 1, -1));
+
+	return np.linalg.solve(designMatrix.dot(designMatrix.T), designMatrix.dot(y));
+
 if __name__ == "__main__":
-# Load data
 
 	Xtilde_tr = reshapeAndAppend1s(np.load("age_regression_Xtr.npy"))
 	ytr = np.load("age_regression_ytr.npy")
 	Xtilde_te = reshapeAndAppend1s(np.load("age_regression_Xte.npy"))
 	yte = np.load("age_regression_yte.npy")
 
-	#print np.load("age_regression_Xtr.npy")[0], Xtilde_tr, Xtilde_tr.shape;
 
 	w1 = method1(Xtilde_tr, ytr)
+	print "Analtical Solution MSE:", "Training Set = ", fMSE(w1, Xtilde_tr, ytr), "Testing Set = ", fMSE(w1, Xtilde_te, yte);
+	
 	w2 = method2(Xtilde_tr, ytr)
-	w3 = method3(Xtilde_tr, ytr)
+	print "Gradient Descent MSE:", "Training Set = ", fMSE(w2, Xtilde_tr, ytr), "Testing Set = ", fMSE(w2, Xtilde_te, yte);
 
-	print fMSE(w1, Xtilde_te, yte);
-	print gradfMSE(w2, Xtilde_te, yte)
-	print gradfMSE(w3, Xtilde_te, yte)
-# Report fMSE cost using each of the three learned weight vectors
-# ...
+	w3 = method3(Xtilde_tr, ytr)
+	print "Gradient Descent with Regulation MSE:", "Training Set = ", fMSE(w3, Xtilde_tr, ytr), "Testing Set = ", fMSE(w3, Xtilde_te, yte);
+
+	#top5 = biggestErrors(w3, Xtilde_te, yte);
+	#for row in top5:
+	#	print row;
+	#	img = Xtilde_te.T[int(row[0]), 0:-1];
+	#	img = np.reshape(img, (48, 48));
+	#	plt.imshow(img)
+	#	plt.show();
+	
+	#w1_image = np.reshape(w1[:-1], (48, 48));
+	#plt.imshow(w1_image);
+	#plt.show();
+
+	#w2_image = np.reshape(w2[:-1], (48, 48));
+	#plt.imshow(w2_image);
+	#plt.show();
+
+	#w3_image = np.reshape(w3[:-1], (48, 48));
+	#plt.imshow(w3_image);
+	#plt.show();
+	
